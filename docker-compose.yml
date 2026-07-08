@@ -1,0 +1,39 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  producer:
+    build: ./producer
+    depends_on:
+      redis:
+        condition: service_healthy
+    env_file: .env
+    volumes:
+      - ./UNSW_NB15_training-set.csv:/app/data/flows.csv:ro
+
+  worker:
+    build: ./worker
+    depends_on:
+      redis:
+        condition: service_healthy
+    env_file: .env
+    volumes:
+      - ./nids_bin_pipeline.pkl:/app/models/nids_bin_pipeline.pkl:ro
+      - ./nids_multi_pipeline.pkl:/app/models/nids_multi_pipeline.pkl:ro
+
+  dashboard:
+    build: ./dashboard
+    depends_on:
+      redis:
+        condition: service_healthy
+    env_file: .env
+    ports: ["8501:8501"]
+    volumes:
+      - ./roc_pr_curves.png:/app/roc_pr_curves.png:ro
+      - ./shap_summary.png:/app/shap_summary.png:ro
